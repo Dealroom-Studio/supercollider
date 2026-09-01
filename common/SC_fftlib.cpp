@@ -35,7 +35,7 @@ ensuring that each thread has its own SplitBuf.
 #include <cstring>
 #include <cassert>
 
-#include "SC_fftlib.h"
+#include "SC_fftlib.hpp"
 #include "malloc_aligned.hpp"
 
 #ifdef NOVA_SIMD
@@ -88,13 +88,13 @@ extern "C" {
 
 // This struct is a bit like FFTW's idea of a "plan": it represents an FFT operation that may be applied once or
 // repeatedly. It should be possible for indata and outdata to be the same, for quasi-in-place operation.
-typedef struct scfft {
+struct scfft {
     unsigned int nfull, nwin, log2nfull,
         log2nwin; // Lengths of full FFT frame, and the (possibly shorter) windowed data frame
     short wintype;
     float *indata, *outdata, *trbuf;
     float scalefac; // Used to rescale the data to unity gain
-} scfft;
+};
 
 
 static float* fftWindow[2][SC_FFT_LOG2_ABSOLUTE_MAXSIZE_PLUS1];
@@ -268,20 +268,20 @@ static size_t scfft_trbufsize(unsigned int fullsize) {
 static int largest_log2n = SC_FFT_LOG2_MAXSIZE;
 static int largest_fftsize = 1 << largest_log2n;
 
-scfft* scfft_create(size_t fullsize, size_t winsize, SCFFT_WindowFunction wintype, float* indata, float* outdata,
-                    SCFFT_Direction forward, SCFFT_Allocator& alloc) {
+scfft* scfft_create(size_t fullsize, size_t winsize, int32 wintype, float* indata, float* outdata, int32 direction,
+                    SCFFT_Allocator* alloc) {
     if ((fullsize > SC_FFT_ABSOLUTE_MAXSIZE) || (fullsize < SC_FFT_MINSIZE))
         return NULL;
 
     const int alignment = 128; // in bytes
-    char* chunk = (char*)alloc.alloc(sizeof(scfft) + scfft_trbufsize(fullsize) + alignment);
+    size_t allocSize = sizeof(scfft) + scfft_trbufsize(fullsize) + alignment;
+    char* chunk = (char*)alloc->mAlloc(alloc->mUser, allocSize);
     if (!chunk)
         return NULL;
 
     scfft* f = (scfft*)chunk;
     float* trbuf = (float*)(chunk + sizeof(scfft));
-    trbuf = (float*)((size_t)((char*)trbuf + (alignment - 1))
-                     & -alignment); // FIXME: should be intptr_t instead of size_t once we use c++11
+    trbuf = (float*)((uintptr_t)((char*)trbuf + (alignment - 1)) & -alignment);
 
 #ifdef NOVA_SIMD
     assert(nova::vec<float>::is_aligned(trbuf));
@@ -303,13 +303,14 @@ scfft* scfft_create(size_t fullsize, size_t winsize, SCFFT_WindowFunction wintyp
 
     // The scale factors rescale the data to unity gain. The old Green lib did this itself, meaning scalefacs would here
     // be 1...
-    if (forward) {
+    if (direction == kForward) {
 #if SC_FFT_VDSP
         f->scalefac = 0.5f;
 #else // forward FFTW and Green factor
         f->scalefac = 1.f;
 #endif
     } else { // backward FFTW and VDSP factor
+        assert(direction == kBackward);
 #if SC_FFT_GREEN
         f->scalefac = 1.f;
 #else // fftw, vdsp
@@ -468,4 +469,4 @@ void scfft_doifft(scfft* f) {
     scfft_dowindowing(f->outdata, f->nwin, f->nfull, f->log2nwin, f->wintype, f->scalefac);
 }
 
-void scfft_destroy(scfft* f, SCFFT_Allocator& alloc) { alloc.free(f); }
+void scfft_destroy(scfft* f, SCFFT_Allocator* alloc) { alloc->mFree(alloc->mUser, f); }

@@ -19,7 +19,7 @@ Install
 
 macOS and Windows builds for stable releases are provided at our [downloads page][downloads page]. See the [macOS README](README_MACOS.md) and [Windows README](README_WINDOWS.md) for instructions on usage, and how to build SC yourself.
 
-To get the latest stable version, Linux users will need to build SuperCollider themselves. See the [Linux README](README_LINUX.md) for instructions.
+To get the latest stable version, Linux users will need to build SuperCollider themselves or use the Flatpak build. See the [Linux README](README_LINUX.md) for instructions.
 
 See the [Raspberry Pi](README_RASPBERRY_PI.md) and [Bela](README_BELA.md) READMEs for instructions on building on those platforms.
 
@@ -30,25 +30,25 @@ See the [Raspberry Pi](README_RASPBERRY_PI.md) and [Bela](README_BELA.md) README
 SuperCollider is tested with:
 - Windows 10 64-bit and MSVC 2022
 - macOS 15 and Xcode 15.2
-- Ubuntu 22.04 and gcc 12
+- Ubuntu 26.04 and gcc 16
 
 SuperCollider is known to support these platforms:
 - Windows 10, 11
-- macOS 11-15
-- Ubuntu 22.04-24.04
+- macOS 12-15, 26
+- Ubuntu 22.04-26.04
 
 
 SuperCollider has guaranteed support for:
 - Windows 10, 11
-- MSVC 2019, 2022
-- macOS 13-15
-- Xcode 14-16
+- MSVC 2022, 2026
+- macOS 15, 26
+- Xcode 16, 26
 - Debian >= 11
-- Ubuntu 22.04, 24.04
-- Fedora 36, 37
+- Ubuntu 24.04, 26.04
+- Fedora 40-44
 - Arch Linux
-- gcc >= 9
-- clang >= 11
+- gcc >= 13
+- clang >= 18
 - Qt >= 6.2
 
 There is still limited support for Qt 5.15. Further details are described in [README_MACOS.md](README_MACOS.md).
@@ -97,7 +97,7 @@ Read our [contributing guide](https://github.com/supercollider/supercollider/wik
 
 ### Good First Issues
 
-To help you get your feet wet and get you familiar with our contribution process, we have a list of [good first issues](https://github.com/supercollider/supercollider/labels/good%20first%20issue) that contain bugs which have a relatively limited scope. This is a great place to get started. You can also ask on our developer's mailing list, on [Slack][Slack], or on the [forum][Discourse].
+To help you get your feet wet and get you familiar with our contribution process, we have a list of [good-first-issues](https://github.com/supercollider/supercollider/labels/good-first-issue) that contain bugs which have a relatively limited scope. This is a great place to get started. You can also ask on our developer's mailing list, on [Slack][Slack], or on the [forum][Discourse].
 
 License
 -------

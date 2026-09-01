@@ -24,75 +24,13 @@ PyrObject represents the structure of all SC Objects.
 */
 
 #pragma once
+#include "PyrObjectHdr.h"
 
 #include "PyrSlot.h"
 
 #include <vector>
 #include <cstdint>
 
-/* special gc colors */
-enum {
-    obj_permanent = 1, // sent to gc->New as a flag
-    obj_gcmarker = 2 // gc treadmill marker
-};
-
-/* obj flag fields */
-enum { obj_inaccessible = 4, obj_immutable = 16, obj_marked = 128 };
-
-/* format types : */
-enum {
-    obj_notindexed,
-    obj_slot,
-    obj_double,
-    obj_float,
-    obj_int32,
-    obj_int16,
-    obj_int8,
-    obj_char,
-    obj_symbol,
-
-    NUMOBJFORMATS
-};
-
-
-/*
-    PyrObjectHdr : object header fields
-    prev, next : pointers in the GC treadmill
-    classptr : pointer to the object's class
-    size : number of slots or indexable elements.
-
-    obj_format : what kind of data this object holds
-    obj_sizeclass : power of two size class of the object
-    obj_flags :
-        immutable : set if object may not be updated.
-        finalize : set if object requires finalization.
-        marked : used by garbage collector debug sanity check. may be used by primitives but must be cleared before
-   exiting primitive.
-   gc_color : GC color : black, grey, white, free, permanent
-   scratch1 : undefined value. may be used within primitives as a temporary scratch value.
-*/
-
-struct PyrObjectHdr {
-    struct PyrObjectHdr *prev, *next;
-    struct PyrClass* classptr;
-    int size;
-
-    unsigned char obj_format;
-    unsigned char obj_sizeclass;
-    unsigned char obj_flags;
-    unsigned char gc_color;
-
-    int scratch1;
-
-    int SizeClass() { return obj_sizeclass; }
-
-    void SetMark() { obj_flags |= obj_marked; }
-    void ClearMark() { obj_flags &= ~obj_marked; }
-    bool IsMarked() const { return obj_flags & obj_marked; }
-    bool IsPermanent() const { return gc_color == obj_permanent; }
-    bool IsImmutable() const { return obj_flags & obj_immutable; }
-    bool IsMutable() const { return !IsImmutable(); }
-};
 
 struct PyrObject : public PyrObjectHdr {
     PyrSlot slots[1];
@@ -130,6 +68,7 @@ struct PyrSymbolArray : public PyrObjectHdr {
     PyrSymbol* symbols[1];
 };
 
+extern struct PyrClass* class_abstract_object;
 extern struct PyrClass* class_object;
 extern struct PyrClass* class_array;
 extern struct PyrClass *class_list, *class_method, *class_fundef, *class_frame, *class_class;
@@ -161,6 +100,7 @@ extern struct PyrClass* class_finalizer;
 extern struct PyrClass* class_server_shm_interface;
 
 extern PyrSymbol* s_none;
+extern PyrSymbol* s_abstract_object;
 extern PyrSymbol* s_object;
 extern PyrSymbol* s_bag;
 extern PyrSymbol* s_set;
@@ -207,7 +147,7 @@ extern PyrSymbol* s_performList;
 extern PyrSymbol* s_superPerformList;
 extern PyrSymbol* s_performArgs;
 extern PyrSymbol *s_new, *s_ref;
-extern PyrSymbol *s_synth, *s_environment, *s_event;
+extern PyrSymbol *s_synth, *s_environment, *s_event, *s_proto_object;
 extern PyrSymbol* s_interpreter;
 extern PyrSymbol* s_finalizer;
 extern PyrSymbol* s_awake;

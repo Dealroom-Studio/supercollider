@@ -8,10 +8,10 @@ on:
 
 jobs:
   test-linux:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-26.04
     env:
       INSTALL_PATH: ${{ github.workspace }}/build/Install
-      ARTIFACT_FILE: "SuperCollider-${{ inputs.sc-version }}-ubuntu-22.04-gcc12"
+      ARTIFACT_FILE: "SuperCollider-${{ inputs.sc-version }}-ubuntu-26.04-gcc16"
       TESTS_PATH: ${{ github.workspace }}/testsuite/classlibrary
       SCLANG: ${{ github.workspace }}/build/Install/bin/sclang
       TEST_LIST_PROTO: ${{ github.workspace }}/testsuite/scripts/test_run_proto_gha.scd
@@ -20,12 +20,12 @@ jobs:
       SCRIPT_PRINT_RESULTS: ${{ github.workspace }}/testsuite/scripts/print_results.scd
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: false # don't need submodules for testing
 
       - name: Download artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: ${{ env.ARTIFACT_FILE }}
           path: ${{ env.INSTALL_PATH }}
@@ -56,6 +56,9 @@ jobs:
 
       - name: Run tests
         shell: bash
+        env:
+          QTWEBENGINE_CHROMIUM_FLAGS: "--no-sandbox --disable-gpu"
+          LIBGL_ALWAYS_SOFTWARE: "1"
         continue-on-error: true
         run: |
           timeout 20m $SCLANG --include-path $TESTS_PATH $SCRIPT_RUN_TESTS $TEST_LIST_PROTO $TEST_LIST_RESULT

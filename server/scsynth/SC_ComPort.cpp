@@ -38,6 +38,8 @@
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/typeof/typeof.hpp>
 
+#include "SC_CoreAudio.h"
+#include "SC_FifoMsg.h"
 #include "SC_Lock.h"
 
 #include "nova-tt/semaphore.hpp"
@@ -48,7 +50,9 @@
 #endif
 
 
+// forward declarations
 bool ProcessOSCPacket(World* inWorld, OSC_Packet* inPacket);
+void World_RemoveClient(FifoMsg* msg);
 
 namespace scsynth {
 
@@ -191,7 +195,7 @@ static void tcp_reply_func(struct ReplyAddress* addr, char* msg, int size) {
 
 
 class SC_UdpInPort {
-    struct World* mWorld;
+    World* mWorld;
     int mPortNum;
     std::string mbindTo;
     boost::array<char, kTextBufSize> recvBuffer;
@@ -252,7 +256,7 @@ class SC_UdpInPort {
 public:
     boost::asio::ip::udp::socket udpSocket;
 
-    SC_UdpInPort(struct World* world, std::string bindTo, int inPortNum):
+    SC_UdpInPort(World* world, std::string bindTo, int inPortNum):
         mWorld(world),
         mPortNum(inPortNum),
         mbindTo(bindTo),
@@ -311,11 +315,11 @@ public:
 
 class SC_TcpConnection : public boost::enable_shared_from_this<SC_TcpConnection> {
 public:
-    struct World* mWorld;
+    World* mWorld;
     typedef boost::shared_ptr<SC_TcpConnection> pointer;
     boost::asio::ip::tcp::socket socket;
 
-    SC_TcpConnection(struct World* world, boost::asio::io_context& ioContext, class SC_TcpInPort* parent):
+    SC_TcpConnection(World* world, boost::asio::io_context& ioContext, class SC_TcpInPort* parent):
         mWorld(world),
         socket(ioContext),
         mParent(parent) {}
@@ -331,6 +335,11 @@ public:
         boost::system::error_code error;
         boost::asio::ip::tcp::no_delay noDelayOption(true);
         socket.set_option(noDelayOption, error);
+
+        mClientIdentification.mProtocol = kTCP;
+        mClientIdentification.mPort = socket.remote_endpoint().port();
+        mClientIdentification.mSocket = socket.native_handle();
+        mClientIdentification.mAddress = socket.remote_endpoint().address();
 
         // first message must be the password. 4 tries.
         bool validated = mWorld->hw->mPassword[0] == 0;
@@ -368,6 +377,9 @@ private:
     int32 OSCMsgLength;
     char* data;
     class SC_TcpInPort* mParent;
+
+    /** acts as the identification within SC world, which is necessary when deregistering upon disconnect. */
+    ReplyAddress mClientIdentification;
 
     void handleLengthReceived(const boost::system::error_code& error, size_t bytes_transferred) {
         if (error) {
@@ -423,7 +435,7 @@ private:
 };
 
 class SC_TcpInPort {
-    struct World* mWorld;
+    World* mWorld;
     boost::asio::ip::tcp::acceptor acceptor;
 
 #ifdef USE_RENDEZVOUS
@@ -434,7 +446,7 @@ class SC_TcpInPort {
     friend class SC_TcpConnection;
 
 public:
-    SC_TcpInPort(struct World* world, const std::string& bindTo, int inPortNum, int inMaxConnections, int inBacklog):
+    SC_TcpInPort(World* world, const std::string& bindTo, int inPortNum, int inMaxConnections, int inBacklog):
         mWorld(world),
         acceptor(ioContext, boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(bindTo), inPortNum)),
         mAvailableConnections(inMaxConnections) {
@@ -477,7 +489,20 @@ public:
     }
 };
 
-SC_TcpConnection::~SC_TcpConnection() { mParent->connectionDestroyed(); }
+SC_TcpConnection::~SC_TcpConnection() {
+    // we need to de-register our client. clients are matched by reply address.
+    // we use fifomsg to get access to the stage2 thread lock.
+    // the callback function removes its passed data, so we make a copy of our reply address.
+    FifoMsg msg;
+    msg.Set(mWorld, World_RemoveClient, nullptr, new ReplyAddress(mClientIdentification));
+    AudioDriver(mWorld)->SendMsgFromEngine(msg);
+
+    // now close the socket
+    try {
+        socket.close();
+    } catch (boost::system::system_error& e) { printf("ERROR: Could not close TCP socket: %s\n", e.what()); }
+    mParent->connectionDestroyed();
+}
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -561,11 +586,11 @@ template <typename T, typename... Args> static bool protectedOpenPort(const char
     return false;
 }
 
-SCSYNTH_DLLEXPORT_C int World_OpenUDP(struct World* inWorld, const char* bindTo, int inPort) {
+SCSYNTH_DLLEXPORT_C int World_OpenUDP(World* inWorld, const char* bindTo, int inPort) {
     return protectedOpenPort<SC_UdpInPort>("UDP", inWorld, bindTo, inPort);
 }
 
-SCSYNTH_DLLEXPORT_C int World_OpenTCP(struct World* inWorld, const char* bindTo, int inPort, int inMaxConnections,
+SCSYNTH_DLLEXPORT_C int World_OpenTCP(World* inWorld, const char* bindTo, int inPort, int inMaxConnections,
                                       int inBacklog) {
     return protectedOpenPort<SC_TcpInPort>("TCP", inWorld, bindTo, inPort, inMaxConnections, inBacklog);
 }

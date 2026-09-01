@@ -28,7 +28,6 @@
 #include <PyrSlot.h>
 #include <PyrKernel.h>
 
-#include <QDebug>
 #include <QChar>
 #include <QString>
 #include <QPoint>
@@ -138,7 +137,8 @@ template <> struct TypeCodec<float> {
 template <> struct TypeCodec<double> {
     static double read(PyrSlot* slot) {
         double d;
-        slotVal(slot, &d);
+        if (slotVal(slot, &d))
+            assert(false);
         return d;
     }
 

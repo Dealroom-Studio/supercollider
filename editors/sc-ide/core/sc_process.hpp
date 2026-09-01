@@ -25,7 +25,6 @@
 #include <QAction>
 #include <QByteArray>
 #include <QDateTime>
-#include <QDebug>
 #include <QProcess>
 #include <QThread>
 #include <QUuid>
@@ -125,9 +124,9 @@ class ScRequest : public QObject {
     Q_OBJECT
 public:
     ScRequest(ScProcess* sc, QObject* parent = 0): QObject(parent), mSc(sc) {
-        connect(mSc, SIGNAL(response(QString, QString)), this, SLOT(onResponse(QString, QString)));
+        connect(mSc, &ScProcess::response, this, &ScRequest::onResponse);
 
-        connect(mSc, SIGNAL(classLibraryRecompiled()), this, SLOT(cancel()));
+        connect(mSc, &ScProcess::classLibraryRecompiled, this, &ScRequest::cancel);
     }
 
     void send(const QString& command, const QString& data) {
